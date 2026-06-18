@@ -59,11 +59,6 @@ const CAREER: CareerItem[] = [
     statusLabel: '現在',
   },
   {
-    role: 'LINEヤフー株式会社（現）Developer Relations',
-    status: 'past',
-    statusLabel: '前職',
-  },
-  {
     role: 'OutSystems Japan / Korea Community Manager',
     status: 'current',
     statusLabel: '現在兼任',
@@ -73,6 +68,11 @@ const CAREER: CareerItem[] = [
     status: 'current',
     statusLabel: '現在兼任',
   },
+  {
+    role: 'LINEヤフー株式会社 技術広報',
+    status: 'past',
+    statusLabel: '前職',
+  }, 
 ]
 
 const ROLE_TAGS = [

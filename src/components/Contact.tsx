@@ -11,11 +11,35 @@ const CATEGORIES = [
   'その他',
 ]
 
-// Formspree のエンドポイントを設定してください
-// https://formspree.io でフォームを作成し、エンドポイントURLを取得して設定します
-const FORMSPREE_ENDPOINT = 'https://formspree.io/f/YOUR_FORM_ID'
+const CONTACT_EMAIL = 'info@thebigle.com'
+
+// Formspree を使う場合: https://formspree.io でフォームを作成し、
+// 発行された 8 文字の ID（例: xabc1234）だけをここに設定してください。
+// 空のままだと mailto: フォールバックが動作します（設定不要ですぐ使えます）。
+const FORMSPREE_ID = ''
+
+const IS_FORMSPREE_ACTIVE = FORMSPREE_ID.length > 0
 
 type FormStatus = 'idle' | 'sending' | 'success' | 'error'
+
+function buildMailtoBody(fields: {
+  name: string
+  company: string
+  email: string
+  category: string
+  message: string
+}) {
+  const lines = [
+    `お名前: ${fields.name}`,
+    fields.company ? `会社名: ${fields.company}` : null,
+    `メールアドレス: ${fields.email}`,
+    `カテゴリ: ${fields.category}`,
+    '',
+    'メッセージ:',
+    fields.message,
+  ]
+  return lines.filter((l): l is string => l !== null).join('\n')
+}
 
 export default function Contact() {
   const infoRef = useScrollReveal<HTMLDivElement>()
@@ -29,28 +53,50 @@ export default function Contact() {
     setStatus('sending')
     setErrorMsg('')
 
-    const data = new FormData(e.currentTarget)
+    const form = e.currentTarget
+    const data = new FormData(form)
+    const fields = {
+      name: (data.get('name') as string) ?? '',
+      company: (data.get('company') as string) ?? '',
+      email: (data.get('email') as string) ?? '',
+      category: (data.get('category') as string) ?? '',
+      message: (data.get('message') as string) ?? '',
+    }
 
-    try {
-      const res = await fetch(FORMSPREE_ENDPOINT, {
-        method: 'POST',
-        body: data,
-        headers: { Accept: 'application/json' },
-      })
+    if (IS_FORMSPREE_ACTIVE) {
+      try {
+        const res = await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
+          method: 'POST',
+          body: data,
+          headers: { Accept: 'application/json' },
+        })
 
-      if (res.ok) {
-        setStatus('success')
-        ;(e.target as HTMLFormElement).reset()
-      } else {
-        const json = await res.json().catch(() => ({}))
-        const msg = (json as { error?: string }).error ?? '送信に失敗しました。しばらく後にお試しください。'
-        setErrorMsg(msg)
+        if (res.ok) {
+          setStatus('success')
+          form.reset()
+        } else {
+          setErrorMsg(
+            '送信に失敗しました。お手数ですが、直接 info@thebigle.com までご連絡ください。'
+          )
+          setStatus('error')
+        }
+      } catch {
+        setErrorMsg(
+          'ネットワークエラーが発生しました。お手数ですが、直接 info@thebigle.com までご連絡ください。'
+        )
         setStatus('error')
       }
-    } catch {
-      setErrorMsg('ネットワークエラーが発生しました。しばらく後にお試しください。')
-      setStatus('error')
+      return
     }
+
+    // Formspree 未設定 → メールアプリを開く mailto: フォールバック
+    const subject = encodeURIComponent(
+      `【お問い合わせ】${fields.category} — ${fields.name}`
+    )
+    const body = encodeURIComponent(buildMailtoBody(fields))
+    window.open(`mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`)
+    setStatus('success')
+    form.reset()
   }
 
   return (
@@ -70,7 +116,7 @@ export default function Contact() {
 
             <p className="contact__cats-label">お問い合わせカテゴリ</p>
             <ul className="contact__cats" aria-label="問い合わせカテゴリ一覧">
-              {CATEGORIES.filter(c => c !== 'その他').map((cat) => (
+              {CATEGORIES.filter((c) => c !== 'その他').map((cat) => (
                 <li key={cat} className="contact__cat">{cat}</li>
               ))}
             </ul>
@@ -82,8 +128,18 @@ export default function Contact() {
                 <p className="form-success__icon" aria-hidden="true">✓</p>
                 <p className="form-success__title">ありがとうございます</p>
                 <p className="form-success__text">
-                  お問い合わせを受け付けました。<br />
-                  2〜3営業日以内にご返信いたします。
+                  {IS_FORMSPREE_ACTIVE ? (
+                    <>
+                      お問い合わせを受け付けました。<br />
+                      2〜3営業日以内にご返信いたします。
+                    </>
+                  ) : (
+                    <>
+                      メールアプリが開きました。<br />
+                      そのまま送信してください。<br />
+                      2〜3営業日以内にご返信いたします。
+                    </>
+                  )}
                 </p>
               </div>
             ) : (
